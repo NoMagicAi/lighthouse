@@ -2,13 +2,18 @@ package trigger
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
+	"github.com/jenkins-x/go-scm/scm"
 	scmfake "github.com/jenkins-x/go-scm/scm/driver/fake"
 	"github.com/jenkins-x/lighthouse/pkg/config"
+	"github.com/jenkins-x/lighthouse/pkg/config/job"
 	"github.com/jenkins-x/lighthouse/pkg/config/lighthouse"
 	"github.com/jenkins-x/lighthouse/pkg/filebrowser"
 	fbfake "github.com/jenkins-x/lighthouse/pkg/filebrowser/fake"
+	"github.com/jenkins-x/lighthouse/pkg/plugins"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -22,29 +27,55 @@ import (
 
 var kubeClient *kubefake.Clientset
 
-// TODO: verify creation of configmap and cronjob from trigger
+func TestUpdatePeriodics(t *testing.T) {
+	_, p := setupPeriodicsTest()
+
+	agent := plugins.Agent{
+		Config: &config.Config{
+			JobConfig: config.JobConfig{
+				Periodics: []job.Periodic{
+					{
+						Base: job.Base{
+							SourcePath: filepath.Join("test_data", "testorg", "myapp", ".lighthouse", "jenkins-x", "dailyjob.yaml"),
+							PipelineRunParams: []job.PipelineRunParam{
+								{
+									Name:          "GREETINGS",
+									ValueTemplate: "Howdy!",
+								},
+							},
+						},
+						Cron: "0 4 * * MON-FRI",
+					},
+				},
+			},
+		},
+		Logger: logrus.WithField("plugin", pluginName),
+	}
+
+	pe := &scm.PushHook{
+		Ref: "refs/heads/master",
+		Repo: scm.Repository{
+			Namespace: "testorg",
+			Name:      "myapp",
+			FullName:  "testorg/myapp",
+		},
+		Commits: []scm.PushCommit{
+			{
+				ID:      "12345678909876",
+				Message: "Adding periodics",
+				Modified: []string{
+					".lighthouse/jenkins-x/trigger.yaml",
+				},
+			},
+		},
+	}
+
+	p.UpdatePeriodics(kubeClient, agent, pe)
+	// TODO: verify creation of configmap and cronjob from trigger
+}
 
 func TestInitializePeriodics(t *testing.T) {
-	const namespace = "default"
-	newDefault, data := scmfake.NewDefault()
-	data.ContentDir = "test_data"
-
-	p := &PeriodicAgent{Namespace: namespace, SCMClient: newDefault}
-	kubeClient = kubefake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: "config"},
-	})
-
-	kubeClient.PrependReactor(
-		"patch",
-		"configmaps",
-		fakeUpsert,
-	)
-
-	kubeClient.PrependReactor(
-		"patch",
-		"cronjobs",
-		fakeUpsert,
-	)
+	namespace, p := setupPeriodicsTest()
 
 	var enabled = true
 	configAgent := &config.Agent{}
@@ -75,6 +106,30 @@ func TestInitializePeriodics(t *testing.T) {
 	containers := cj.JobTemplate.Spec.Template.Spec.Containers
 	require.Len(t, containers, 1)
 	require.Len(t, containers[0].Args, 2)
+}
+
+func setupPeriodicsTest() (string, *PeriodicAgent) {
+	const namespace = "default"
+	newDefault, data := scmfake.NewDefault()
+	data.ContentDir = "test_data"
+
+	p := &PeriodicAgent{Namespace: namespace, SCMClient: newDefault}
+	kubeClient = kubefake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "config"},
+	})
+
+	kubeClient.PrependReactor(
+		"patch",
+		"configmaps",
+		fakeUpsert,
+	)
+
+	kubeClient.PrependReactor(
+		"patch",
+		"cronjobs",
+		fakeUpsert,
+	)
+	return namespace, p
 }
 
 func fakeUpsert(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
