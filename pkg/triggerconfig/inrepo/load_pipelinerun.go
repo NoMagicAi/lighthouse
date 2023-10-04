@@ -390,6 +390,10 @@ func loadTaskRefs(resolver *UsesResolver, pipelineSpec *tektonv1beta1.PipelineSp
 	for i := range pipelineSpec.Tasks {
 		t := &pipelineSpec.Tasks[i]
 		if t.TaskSpec == nil && t.TaskRef != nil && t.TaskRef.Name != "" && re.MatchString(t.TaskRef.Name) {
+            // TODO: this is needed since we migrated from a version that accepted relative paths, we should use absolute paths
+            if strings.HasPrefix(t.TaskRef.Name, "../tekton") {
+                    t.TaskRef.Name = strings.Replace(t.TaskRef.Name, "../tekton", "tekton", 1)
+            }
 			path := filepath.Join(dir, t.TaskRef.Name)
 			if !strings.HasSuffix(path, ".yaml") {
 				path += ".yaml"
