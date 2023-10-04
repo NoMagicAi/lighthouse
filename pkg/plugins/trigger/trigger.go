@@ -286,7 +286,7 @@ func runRequested(c Client, pr *scm.PullRequest, requestedJobs []job.Presubmit, 
 		if _, err := c.LauncherClient.Launch(&pj); err != nil {
 			c.Logger.WithError(err).Error("Failed to create LighthouseJob.")
 			errors = append(errors, err)
-			if _, statusErr := c.SCMProviderClient.CreateStatus(pr.Base.Repo.Namespace, pr.Base.Repo.Name, pr.Head.Ref, failedStatusForMetapipelineCreation(job.Context, err)); statusErr != nil {
+			if _, statusErr := c.SCMProviderClient.CreateStatus(pr.Base.Repo.Namespace, pr.Base.Repo.Name, pr.Head.Sha, failedStatusForMetapipelineCreation(job.Context, err)); statusErr != nil {
 				errors = append(errors, statusErr)
 			}
 		}
@@ -303,7 +303,7 @@ func skipRequested(c Client, pr *scm.PullRequest, skippedJobs []job.Presubmit) e
 		}
 		c.Logger.Infof("Skipping %s build.", job.Name)
 		status := skippedStatusFor(job.Context)
-		if _, err := c.SCMProviderClient.CreateStatus(pr.Base.Repo.Namespace, pr.Base.Repo.Name, pr.Head.Ref, status); err != nil {
+		if _, err := c.SCMProviderClient.CreateStatus(pr.Base.Repo.Namespace, pr.Base.Repo.Name, pr.Head.Sha, status); err != nil {
 			c.Logger.WithError(err).
 				WithField("status", status).
 				WithField("repo", pr.Base.Repo.Namespace+"/"+pr.Base.Repo.Name).

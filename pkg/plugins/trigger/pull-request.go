@@ -266,9 +266,22 @@ func TrustedPullRequest(spc scmProviderClient, trigger *plugins.Trigger, author,
 func buildAll(c Client, pr *scm.PullRequest, eventGUID string, elideSkippedContexts bool) error {
 	org, repo, number, branch := pr.Base.Repo.Namespace, pr.Base.Repo.Name, pr.Number, pr.Base.Ref
 	changes := job.NewGitHubDeferredChangedFilesProvider(c.SCMProviderClient, org, repo, number)
-	toTest, toSkip, err := jobutil.FilterPresubmits(jobutil.TestAllFilter(), changes, branch, c.Config.GetPresubmits(pr.Base.Repo), c.Logger)
+
+	presubmits := c.Config.GetPresubmits(pr.Base.Repo)
+	var filteredPresubmits []job.Presubmit
+
+	for _, j := range presubmits {
+		if j.Autorun {
+			filteredPresubmits = append(filteredPresubmits, j)
+		} else {
+			c.Logger.Infof("Skipping job %s because Autorun is false", j.Name)
+		}
+	}
+
+	toTest, toSkip, err := jobutil.FilterPresubmits(jobutil.TestAllFilter(), changes, branch, filteredPresubmits, c.Logger)
 	if err != nil {
 		return err
 	}
+
 	return RunAndSkipJobs(c, pr, toTest, toSkip, eventGUID, elideSkippedContexts)
 }
