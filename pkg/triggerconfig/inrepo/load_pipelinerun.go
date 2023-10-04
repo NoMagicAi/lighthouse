@@ -119,7 +119,7 @@ func LoadTektonResourceAsPipelineRun(resolver *UsesResolver, data []byte) (*tekt
 	case "PipelineRun":
 		prs := &tektonv1beta1.PipelineRun{}
 		err := yaml.Unmarshal(data, prs)
-        prs.Spec.Timeouts = nil
+		prs.Spec.Timeouts = nil
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to unmarshal PipelineRun YAML %s", message)
 		}
@@ -390,10 +390,10 @@ func loadTaskRefs(resolver *UsesResolver, pipelineSpec *tektonv1beta1.PipelineSp
 	for i := range pipelineSpec.Tasks {
 		t := &pipelineSpec.Tasks[i]
 		if t.TaskSpec == nil && t.TaskRef != nil && t.TaskRef.Name != "" && re.MatchString(t.TaskRef.Name) {
-            // TODO: this is needed since we migrated from a version that accepted relative paths, we should use absolute paths
-            if strings.HasPrefix(t.TaskRef.Name, "../tekton") {
-                    t.TaskRef.Name = strings.Replace(t.TaskRef.Name, "../tekton", "tekton", 1)
-            }
+			// TODO: this is needed since we migrated from a version that accepted relative paths, we should use absolute paths
+			if strings.HasPrefix(t.TaskRef.Name, "../tekton") {
+			        t.TaskRef.Name = strings.Replace(t.TaskRef.Name, "../tekton", "tekton", 1)
+			}
 			path := filepath.Join(dir, t.TaskRef.Name)
 			if !strings.HasSuffix(path, ".yaml") {
 				path += ".yaml"
@@ -413,7 +413,7 @@ func loadTaskRefs(resolver *UsesResolver, pipelineSpec *tektonv1beta1.PipelineSp
 			t.TaskSpec = &tektonv1beta1.EmbeddedTask{
 				TaskSpec: t2.Spec,
 			}
-            t.TaskSpec.Metadata.Annotations = t2.Annotations
+			t.TaskSpec.Metadata.Annotations = t2.Annotations
 			t.TaskRef = nil
 		}
 	}
