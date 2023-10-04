@@ -413,6 +413,7 @@ func loadTaskRefs(resolver *UsesResolver, pipelineSpec *tektonv1beta1.PipelineSp
 			t.TaskSpec = &tektonv1beta1.EmbeddedTask{
 				TaskSpec: t2.Spec,
 			}
+            t.TaskSpec.Metadata.Annotations = t2.Annotations
 			t.TaskRef = nil
 		}
 	}
