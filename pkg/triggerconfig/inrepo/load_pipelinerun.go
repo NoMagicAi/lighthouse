@@ -119,6 +119,7 @@ func LoadTektonResourceAsPipelineRun(resolver *UsesResolver, data []byte) (*tekt
 	case "PipelineRun":
 		prs := &tektonv1beta1.PipelineRun{}
 		err := yaml.Unmarshal(data, prs)
+        prs.Spec.Timeouts = nil
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to unmarshal PipelineRun YAML %s", message)
 		}
