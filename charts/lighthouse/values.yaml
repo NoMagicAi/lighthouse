@@ -412,3 +412,13 @@ configMaps:
   # configUpdater:
   #   orgAndRepo: foo/bar
   #   path: a/b/c
+
+# Example of extraResources:
+# extraResources:
+#  secrets:
+#    token:
+#      namespace: lighthouse
+#      data:
+#        token: dG9rZW4=
+
+extraResources: {}

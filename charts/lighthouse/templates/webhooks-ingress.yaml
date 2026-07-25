@@ -19,7 +19,7 @@ spec:
   {{- end }}
   rules:
   {{- range .Values.webhooks.ingress.hosts }}
-  - host: {{ . | quote }}
+  - host: {{ .name | quote }}
     http:
       paths:
         - backend:
@@ -28,8 +28,8 @@ spec:
               name: {{ default (include "webhooks.name" $) $.Values.webhooks.serviceName }}
               port:
                 number: {{ $.Values.webhooks.service.externalPort }}
-          path: /
-          pathType: ImplementationSpecific
+          path: {{ .path | quote }}
+          pathType: {{ .pathType }}
         {{- else }}
             serviceName: {{ default (include "webhooks.name" $) $.Values.webhooks.serviceName }}
             servicePort: {{ $.Values.webhooks.service.externalPort }}
