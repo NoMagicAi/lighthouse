@@ -750,6 +750,7 @@ func TestHandlePullRequest(t *testing.T) {
 						Name: "jib",
 					},
 					AlwaysRun: true,
+					Autorun:   true,
 				},
 			},
 		}

@@ -34,6 +34,8 @@ type Presubmit struct {
 	AlwaysRun bool `json:"always_run"`
 	// RequireRun if this value is true and AlwaysRun is false then we need to manually trigger this context for the PR to be allowed to auto merge.
 	RequireRun bool `json:"require_run,omitempty"`
+	// Autorun indicates that the job's start should be triggered automatically each time a new commit is pushed.
+	Autorun bool `json:"autorun,omitempty"`
 	// Optional indicates that the job's status context should not be required for merge.
 	Optional bool `json:"optional,omitempty"`
 	// Trigger is the regular expression to trigger the job.

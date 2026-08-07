@@ -445,6 +445,10 @@ func loadTaskRefs(resolver *UsesResolver, pipelineSpec *pipelinev1.PipelineSpec,
 	for i := range pipelineSpec.Tasks {
 		t := &pipelineSpec.Tasks[i]
 		if t.TaskSpec == nil && t.TaskRef != nil && t.TaskRef.Name != "" && re.MatchString(t.TaskRef.Name) {
+			// TODO: this is needed since we migrated from a version that accepted relative paths, we should use absolute paths
+			if strings.HasPrefix(t.TaskRef.Name, "../tekton") {
+				t.TaskRef.Name = strings.Replace(t.TaskRef.Name, "../tekton", "tekton", 1)
+			}
 			path := filepath.Join(dir, t.TaskRef.Name)
 			if !strings.HasSuffix(path, ".yaml") {
 				path += ".yaml"
@@ -468,6 +472,7 @@ func loadTaskRefs(resolver *UsesResolver, pipelineSpec *pipelinev1.PipelineSpec,
 			t.TaskSpec = &pipelinev1.EmbeddedTask{
 				TaskSpec: task.Spec,
 			}
+			t.TaskSpec.Metadata.Annotations = task.Annotations
 			t.TaskRef = nil
 		}
 	}
@@ -587,14 +592,9 @@ func (v *DefaultValues) Apply(prs *pipelinev1.PipelineRun) {
 	if prs.Spec.TaskRunTemplate.ServiceAccountName == "" && v.ServiceAccountName != "" {
 		prs.Spec.TaskRunTemplate.ServiceAccountName = v.ServiceAccountName
 	}
-	if prs.Spec.Timeouts == nil {
-		prs.Spec.Timeouts = &pipelinev1.TimeoutFields{}
-	}
-
-	if prs.Spec.Timeouts.Pipeline == nil {
-		// Set a default timeout of 1 day if no timeout is specified
-		prs.Spec.Timeouts.Pipeline = &metav1.Duration{Duration: 24 * time.Hour}
-	}
+	// Drop any timeouts (from repo YAML or upstream defaulting) so the cluster
+	// default-timeout-minutes governs, matching the behaviour of our 1.13.8 fork.
+	prs.Spec.Timeouts = nil
 }
 
 // ToParams converts the param specs to params
