@@ -177,6 +177,8 @@ spec:
       - name: pipeline-ws
   taskRunTemplate:
     serviceAccountName: tekton-bot
+  timeouts:
+    pipeline: 12h0m0s
   workspaces:
     - name: pipeline-ws
       volumeClaimTemplate:

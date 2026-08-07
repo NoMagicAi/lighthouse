@@ -39,4 +39,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
+  timeouts:
+    pipeline: 240h0m0s
 status: {}

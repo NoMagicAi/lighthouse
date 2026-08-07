@@ -254,6 +254,8 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
+  timeouts:
+    pipeline: 12h0m0s
   workspaces:
     - emptyDir: {}
       name: source

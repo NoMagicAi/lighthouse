@@ -123,9 +123,6 @@ func ConvertTektonResourceAsPipelineRun(data []byte, message string, values *Def
 		if err != nil {
 			return nil, err
 		}
-		// Drop declared timeouts so the cluster default-timeout-minutes governs;
-		// same rule as DefaultValues.Apply, which this path never reaches.
-		prs.Spec.Timeouts = nil
 
 	case "Task":
 		task := &pipelinev1.Task{}
