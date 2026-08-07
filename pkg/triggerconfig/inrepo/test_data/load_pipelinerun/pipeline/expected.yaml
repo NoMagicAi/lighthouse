@@ -3223,8 +3223,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 30m0s
 status: {}
 ---
 apiVersion: tekton.dev/v1
@@ -3407,8 +3405,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 12h0m0s
   workspaces:
     - name: pipeline-ws
       volumeClaimTemplate:
@@ -3463,8 +3459,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 240h0m0s
 status: {}
 ---
 apiVersion: tekton.dev/v1
@@ -6004,8 +5998,6 @@ spec:
               image: common-image
               name: common-build
   taskRunTemplate: {}
-  timeouts:
-    pipeline: 240h0m0s
 status: {}
 ---
 apiVersion: tekton.dev/v1
@@ -9343,8 +9335,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 12h0m0s
   workspaces:
     - emptyDir: {}
       name: source
@@ -9650,8 +9640,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 240h0m0s
   workspaces:
     - emptyDir: {}
       name: output
@@ -12587,8 +12575,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 30m0s
 status: {}
 ---
 apiVersion: tekton.dev/v1
@@ -12771,8 +12757,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 12h0m0s
   workspaces:
     - name: pipeline-ws
       volumeClaimTemplate:
@@ -12827,8 +12811,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 240h0m0s
 status: {}
 ---
 apiVersion: tekton.dev/v1
@@ -15368,8 +15350,6 @@ spec:
               image: common-image
               name: common-build
   taskRunTemplate: {}
-  timeouts:
-    pipeline: 240h0m0s
 status: {}
 ---
 apiVersion: tekton.dev/v1
@@ -18707,8 +18687,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 12h0m0s
   workspaces:
     - emptyDir: {}
       name: source
@@ -19014,8 +18992,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 240h0m0s
   workspaces:
     - emptyDir: {}
       name: output
@@ -21951,8 +21927,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 30m0s
 status: {}
 ---
 apiVersion: tekton.dev/v1
@@ -22135,8 +22109,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 12h0m0s
   workspaces:
     - name: pipeline-ws
       volumeClaimTemplate:
@@ -22191,8 +22163,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 240h0m0s
 status: {}
 ---
 apiVersion: tekton.dev/v1
@@ -24732,8 +24702,6 @@ spec:
               image: common-image
               name: common-build
   taskRunTemplate: {}
-  timeouts:
-    pipeline: 240h0m0s
 status: {}
 ---
 apiVersion: tekton.dev/v1
@@ -28071,8 +28039,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 12h0m0s
   workspaces:
     - emptyDir: {}
       name: source
@@ -28378,8 +28344,6 @@ spec:
   taskRunTemplate:
     podTemplate: {}
     serviceAccountName: tekton-bot
-  timeouts:
-    pipeline: 240h0m0s
   workspaces:
     - emptyDir: {}
       name: output
