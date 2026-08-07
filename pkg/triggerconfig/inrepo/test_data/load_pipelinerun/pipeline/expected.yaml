@@ -290,8 +290,6 @@ spec:
     workspaces:
       - name: git-source
   taskRunTemplate: {}
-  timeouts:
-    pipeline: 24h0m0s
 status: {}
 ---
 apiVersion: tekton.dev/v1
@@ -6924,8 +6922,6 @@ spec:
       - description: The git repo will be cloned onto the volume backing this workspace
         name: output
   taskRunTemplate: {}
-  timeouts:
-    pipeline: 24h0m0s
   workspaces:
     - emptyDir: {}
       name: output
@@ -16257,8 +16253,6 @@ spec:
       - description: The git repo will be cloned onto the volume backing this workspace
         name: output
   taskRunTemplate: {}
-  timeouts:
-    pipeline: 24h0m0s
   workspaces:
     - emptyDir: {}
       name: output
@@ -25590,8 +25584,6 @@ spec:
       - description: The git repo will be cloned onto the volume backing this workspace
         name: output
   taskRunTemplate: {}
-  timeouts:
-    pipeline: 24h0m0s
   workspaces:
     - emptyDir: {}
       name: output

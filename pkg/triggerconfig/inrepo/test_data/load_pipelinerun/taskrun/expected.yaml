@@ -241,6 +241,4 @@ spec:
                 [[ $1 == "hello" ]]
                 [[ $2 == "world" ]]
   taskRunTemplate: {}
-  timeouts:
-    pipeline: 24h0m0s
 status: {}
