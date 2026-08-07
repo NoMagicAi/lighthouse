@@ -408,7 +408,9 @@ func (pa *PeriodicAgent) constructCronJob(resourceName, configMapName string, la
 							WithRestartPolicy("Never").
 							WithContainers((&applyv1.ContainerApplyConfiguration{}).
 								WithName("create-lighthousejob").
-								WithImage("bitnami/kubectl").
+								// bitnami/kubectl:latest is gone from Docker Hub (catalog retired 2025);
+								// pinned legacy copy via our mirror, needs bash for BASH_REMATCH below.
+								WithImage("europe-west3-docker.pkg.dev/management-nomagic-ai/dockerhub-mirror/bitnamilegacy/kubectl:1.31.3").
 								WithCommand("/bin/bash").
 								WithArgs("-c", `
 set -o errexit
