@@ -11,6 +11,7 @@ import (
 	"github.com/jenkins-x/lighthouse/pkg/logrusutil"
 	"github.com/sirupsen/logrus"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
+	tektonversioned "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -22,6 +23,9 @@ type options struct {
 	dashboardURL            string
 	dashboardTemplate       string
 	enableRerunStatusUpdate bool
+	kubeAPIQPS              float64
+	kubeAPIBurst            int
+	maxConcurrentReconciles int
 }
 
 func (o *options) Validate() error {
@@ -34,6 +38,9 @@ func gatherOptions(fs *flag.FlagSet, args ...string) options {
 	fs.StringVar(&o.dashboardURL, "dashboard-url", "", "The base URL for the Tekton Dashboard to link to for build reports")
 	fs.StringVar(&o.dashboardTemplate, "dashboard-template", "", "The template expression for generating the URL to the build report based on the PipelineRun parameters. If not specified defaults to $LIGHTHOUSE_DASHBOARD_TEMPLATE")
 	fs.BoolVar(&o.enableRerunStatusUpdate, "enable-rerun-status-update", false, "Enable updating the status at the git provider when PipelineRuns are rerun")
+	fs.Float64Var(&o.kubeAPIQPS, "kube-api-qps", 50, "Maximum QPS to the kube-apiserver from this client")
+	fs.IntVar(&o.kubeAPIBurst, "kube-api-burst", 100, "Maximum burst for throttle from this client")
+	fs.IntVar(&o.maxConcurrentReconciles, "max-concurrent-reconciles", 4, "Number of LighthouseJobs reconciled concurrently")
 	err := fs.Parse(args)
 	if err != nil {
 		logrus.WithError(err).Fatal("Invalid options")
@@ -62,6 +69,10 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).Fatal("Could not create kubeconfig")
 	}
+	// client-go defaults to 5 QPS; each job reconcile GETs every TaskRun of its
+	// PipelineRun, so after a restart the walk over retained runs took >30 min.
+	cfg.QPS = float32(o.kubeAPIQPS)
+	cfg.Burst = o.kubeAPIBurst
 
 	mgr, err := ctrl.NewManager(cfg, manager.Options{
 		Cache: cache.Options{
@@ -75,13 +86,14 @@ func main() {
 		logrus.WithError(err).Fatal("Unable to start manager")
 	}
 
-	tektonclient, _, _, _, err := clients.GetAPIClients()
+	// Built from cfg so the TaskRun GETs in ConvertPipelineRun share the raised QPS.
+	tektonclient, err := tektonversioned.NewForConfig(cfg)
 	if err != nil {
-		logrus.WithError(err).Fatal(err, "failed to get api clients")
+		logrus.WithError(err).Fatal(err, "failed to create tekton client")
 	}
 
 	lhJobReconciler := tektonengine.NewLighthouseJobReconciler(mgr.GetClient(), mgr.GetAPIReader(), mgr.GetScheme(), tektonclient, o.dashboardURL, o.dashboardTemplate, o.namespace)
-	if err = lhJobReconciler.SetupWithManager(mgr); err != nil {
+	if err = lhJobReconciler.SetupWithManager(mgr, o.maxConcurrentReconciles); err != nil {
 		logrus.WithError(err).Fatal("Unable to create controller")
 	}
 

@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
@@ -68,7 +69,7 @@ var tektonControllerIndexFunc = func(rawObj client.Object) []string {
 }
 
 // SetupWithManager sets up the reconcilier with it's manager
-func (r *LighthouseJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *LighthouseJobReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrentReconciles int) error {
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &pipelinev1.PipelineRun{}, jobOwnerKey, tektonControllerIndexFunc); err != nil {
 		return err
@@ -78,6 +79,7 @@ func (r *LighthouseJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&lighthousev1alpha1.LighthouseJob{}).
 		WithEventFilter(predicate.ResourceVersionChangedPredicate{}).
 		Owns(&pipelinev1.PipelineRun{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(r)
 }
 

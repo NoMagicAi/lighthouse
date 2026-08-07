@@ -1,15 +1,19 @@
-# NoMagic build of the webhooks controller. Base images come from our
-# Artifact Registry Docker Hub mirror; runtime layer mirrors docker/webhooks/Dockerfile.
+# NoMagic build of a lighthouse component. Base images come from our Artifact
+# Registry Docker Hub mirror; runtime layer mirrors docker/<component>/Dockerfile.
 #
 # Build and push (from the repo root, tag = <upstream>-nomagic-vN):
 #   docker build -f Dockerfile.nomagic --platform linux/amd64 \
-#     --build-arg VERSION=1.27.0-nomagic-v1 \
+#     --build-arg COMPONENT=webhooks --build-arg VERSION=1.27.0-nomagic-v1 \
 #     -t europe-west3-docker.pkg.dev/cicd-nomagic-ai/images/lighthouse-webhooks:1.27.0-nomagic-v1 .
-#   docker push europe-west3-docker.pkg.dev/cicd-nomagic-ai/images/lighthouse-webhooks:1.27.0-nomagic-v1
+#   docker build -f Dockerfile.nomagic --platform linux/amd64 \
+#     --build-arg COMPONENT=tektoncontroller --build-arg VERSION=1.27.0-nomagic-v1 \
+#     -t europe-west3-docker.pkg.dev/cicd-nomagic-ai/images/lighthouse-tekton-controller:1.27.0-nomagic-v1 .
+#   docker push <image>
 ARG MIRROR=europe-west3-docker.pkg.dev/management-nomagic-ai/dockerhub-mirror
 
 # Build stage runs on the builder's native arch; go cross-compiles to amd64.
 FROM --platform=$BUILDPLATFORM ${MIRROR}/golang:1.24 AS build
+ARG COMPONENT=webhooks
 ARG VERSION=dev
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -17,12 +21,12 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags "-X github.com/jenkins-x/lighthouse/pkg/version.Version=${VERSION}" \
-    -o /webhooks cmd/webhooks/main.go
+    -o /app cmd/${COMPONENT}/main.go
 
 FROM ${MIRROR}/alpine:3.23
 RUN apk add --update --no-cache ca-certificates git \
     && adduser -D -u 1000 jx
 ENV JX_HOME=/home/jx
 USER 1000
-COPY --from=build /webhooks /home/jx/webhooks
-ENTRYPOINT ["/home/jx/webhooks"]
+COPY --from=build /app /home/jx/app
+ENTRYPOINT ["/home/jx/app"]
