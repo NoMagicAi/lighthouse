@@ -2,6 +2,7 @@ package trigger
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -294,7 +295,7 @@ func (pa *PeriodicAgent) UpdatePeriodicsForRepo(
 			}
 		}
 
-		resourceName := fmt.Sprintf("lighthouse-%s-%s-%s", org, repo, p.Name)
+		resourceName := periodicResourceName(org, repo, p.Name)
 
 		err := p.LoadPipeline(l)
 		if err != nil {
@@ -385,6 +386,19 @@ func (pa *PeriodicAgent) getExistingResources(
 		return nil, nil, true
 	}
 	return cmList, cronList, false
+}
+
+// periodicResourceName names the CronJob + ConfigMap of one periodic. Lowercased
+// for RFC 1123 (orgs like NoMagicAi break resource names) and capped at 52 chars,
+// the CronJob name limit (Jobs get a timestamp suffix); long names keep a short
+// hash for uniqueness.
+func periodicResourceName(org, repo, jobName string) string {
+	resourceName := strings.ToLower(fmt.Sprintf("lighthouse-%s-%s-%s", org, repo, jobName))
+	if len(resourceName) > 52 {
+		nameHash := sha256.Sum256([]byte(resourceName))
+		resourceName = fmt.Sprintf("%s-%x", strings.TrimRight(resourceName[:43], "-"), nameHash[:4])
+	}
+	return resourceName
 }
 
 func (pa *PeriodicAgent) constructCronJob(resourceName, configMapName string, labels map[string]string) *applybatchv1.CronJobApplyConfiguration {
