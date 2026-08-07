@@ -346,7 +346,7 @@ func TestRunAndSkipJobs(t *testing.T) {
 				t.Errorf("%s: expected no error but got one: %v", testCase.name, err)
 			}
 
-			if actual, expected := fakeSCMClient.CreatedStatuses[pr.Head.Ref], testCase.expectedStatuses; !reflect.DeepEqual(actual, expected) {
+			if actual, expected := fakeSCMClient.CreatedStatuses[pr.Head.Sha], testCase.expectedStatuses; !reflect.DeepEqual(actual, expected) {
 				t.Errorf("%s: created incorrect statuses: %s", testCase.name, cmp.Diff(actual, expected))
 			}
 

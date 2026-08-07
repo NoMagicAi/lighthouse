@@ -1004,6 +1004,4 @@ spec:
     workspaces:
       - name: git-source
   taskRunTemplate: {}
-  timeouts:
-    pipeline: 24h0m0s
 status: {}

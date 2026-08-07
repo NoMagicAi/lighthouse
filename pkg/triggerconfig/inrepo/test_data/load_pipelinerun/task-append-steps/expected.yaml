@@ -175,6 +175,4 @@ spec:
                 echo "checked out revision: $PULL_PULL_SHA to dir: $SUBDIR"
               workingDir: /workspace
   taskRunTemplate: {}
-  timeouts:
-    pipeline: 24h0m0s
 status: {}

@@ -95,7 +95,10 @@ spec:
           - name: REPO_URL
             value: $(params.REPO_URL)
         taskSpec:
-          metadata: {}
+          metadata:
+            annotations:
+              description: |
+                A simple task that sums the two provided integers
           params:
             - description: The first integer
               name: a

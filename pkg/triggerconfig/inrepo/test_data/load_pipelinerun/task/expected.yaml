@@ -307,6 +307,4 @@ spec:
                     path: labels
               name: podinfo
   taskRunTemplate: {}
-  timeouts:
-    pipeline: 24h0m0s
 status: {}
