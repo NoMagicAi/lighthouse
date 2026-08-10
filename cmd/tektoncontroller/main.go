@@ -25,6 +25,8 @@ type options struct {
 	enableRerunStatusUpdate  bool
 	skipTerminatedReconciles bool
 	maxConcurrentReconciles  int
+	kubeAPIQPS               float64
+	kubeAPIBurst             int
 }
 
 func (o *options) Validate() error {
@@ -39,6 +41,8 @@ func gatherOptions(fs *flag.FlagSet, args ...string) options {
 	fs.BoolVar(&o.enableRerunStatusUpdate, "enable-rerun-status-update", false, "Enable updating the status at the git provider when PipelineRuns are rerun")
 	fs.BoolVar(&o.skipTerminatedReconciles, "skip-terminated-reconciles", false, "When true, add LighthouseJob watch predicates and a Reconcile fast path to skip work when the PipelineRun is terminal and activity is already in sync. Default false uses resource-version filtering only on LighthouseJob")
 	fs.IntVar(&o.maxConcurrentReconciles, "max-concurrent-reconciles", 1, "Parallel reconciles for the tekton controllers (LighthouseJob and RerunPipelineRun)")
+	fs.Float64Var(&o.kubeAPIQPS, "kube-api-qps", 50, "Maximum QPS to the kube-apiserver from this client")
+	fs.IntVar(&o.kubeAPIBurst, "kube-api-burst", 100, "Maximum burst for throttle from this client")
 	err := fs.Parse(args)
 	if err != nil {
 		logrus.WithError(err).Fatal("Invalid options")
@@ -71,6 +75,10 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).Fatal("Could not create kubeconfig")
 	}
+	// client-go defaults to 5 QPS; each job reconcile GETs every TaskRun of its
+	// PipelineRun, so after a restart the walk over retained runs took >30 min.
+	cfg.QPS = float32(o.kubeAPIQPS)
+	cfg.Burst = o.kubeAPIBurst
 
 	mgr, err := ctrl.NewManager(cfg, manager.Options{
 		Cache: cache.Options{
