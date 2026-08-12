@@ -407,6 +407,17 @@ func (pa *PeriodicAgent) constructCronJob(resourceName, configMapName string, la
 	if !found {
 		serviceAccount = "lighthouse-webhooks"
 	}
+	// The token the resolve step below uses for git ls-remote; defaults match
+	// the chart's oauth secret. Referenced as a secretKeyRef so the token never
+	// lands in the CronJob object itself.
+	gitTokenSecret, found := os.LookupEnv("GIT_TOKEN_SECRET")
+	if !found {
+		gitTokenSecret = "lighthouse-oauth-token"
+	}
+	gitTokenKey, found := os.LookupEnv("GIT_TOKEN_KEY")
+	if !found {
+		gitTokenKey = "oauth"
+	}
 	return applybatchv1.CronJob(resourceName, pa.Namespace).
 		WithLabels(labels).
 		WithSpec((&applybatchv1.CronJobSpecApplyConfiguration{}).
@@ -426,12 +437,44 @@ func (pa *PeriodicAgent) constructCronJob(resourceName, configMapName string, la
 								// pinned legacy copy via our mirror, needs bash for BASH_REMATCH below.
 								WithImage("europe-west3-docker.pkg.dev/management-nomagic-ai/dockerhub-mirror/bitnamilegacy/kubectl:1.31.3").
 								WithCommand("/bin/bash").
+								// A periodic LighthouseJob is baked without a commit: upstream models a
+								// periodic as "a branch", so spec.refs carries no base_sha, and everything
+								// downstream that matches runs by commit (the lastCommitSHA label, image
+								// tags derived from PULL_PULL_SHA) comes out empty. Resolve the branch head
+								// when the CronJob fires, so the job carries a real commit exactly like a
+								// postsubmit; the controller derives the labels from spec.refs at
+								// PipelineRun creation. An unresolvable ref fails the pod rather than
+								// creating a commitless job.
 								WithArgs("-c", `
 set -o errexit
-create_output=$(kubectl create -f /config/lighthousejob.json)
+set -o pipefail
+
+org=$(jq -r '.spec.refs.org' /config/lighthousejob.json)
+repo=$(jq -r '.spec.refs.repo' /config/lighthousejob.json)
+branch=$(jq -r '.spec.refs.base_ref // empty' /config/lighthousejob.json)
+clone_uri=$(jq -r '.spec.refs.clone_uri // empty' /config/lighthousejob.json)
+[[ -n "$clone_uri" ]] || clone_uri="https://github.com/${org}/${repo}.git"
+ref="refs/heads/${branch}"
+[[ -n "$branch" ]] || ref="HEAD"
+
+sha=$(git ls-remote "https://x-access-token:${GIT_TOKEN}@${clone_uri#https://}" "$ref" | head -1 | cut -f1)
+[[ -n "$sha" ]] || { echo "could not resolve $ref of $clone_uri" >&2; exit 1; }
+echo "resolved ${org}/${repo} ${ref} to ${sha}"
+
+jq --arg sha "$sha" '.spec.refs.base_sha = $sha
+    | .metadata.labels["lighthouse.jenkins-x.io/lastCommitSHA"] = $sha' \
+  /config/lighthousejob.json > /tmp/lighthousejob.json
+
+create_output=$(kubectl create -f /tmp/lighthousejob.json)
 [[ $create_output =~ (.*)\  ]]
 kubectl patch ${BASH_REMATCH[1]} --type=merge --subresource status --patch 'status: {state: triggered}'
 `).
+								WithEnv((&applyv1.EnvVarApplyConfiguration{}).
+									WithName("GIT_TOKEN").
+									WithValueFrom((&applyv1.EnvVarSourceApplyConfiguration{}).
+										WithSecretKeyRef((&applyv1.SecretKeySelectorApplyConfiguration{}).
+											WithName(gitTokenSecret).
+											WithKey(gitTokenKey)))).
 								WithVolumeMounts((&applyv1.VolumeMountApplyConfiguration{}).
 									WithName(volumeName).
 									WithMountPath("/config"))).
