@@ -78,6 +78,7 @@ func TestUpdatePeriodics(t *testing.T) {
 	containers := cj.JobTemplate.Spec.Template.Spec.Containers
 	require.Len(t, containers, 1)
 	require.Len(t, containers[0].Args, 2)
+	assertResolvesHeadAtFireTime(t, containers[0])
 }
 
 func TestInitializePeriodics(t *testing.T) {
@@ -112,6 +113,27 @@ func TestInitializePeriodics(t *testing.T) {
 	containers := cj.JobTemplate.Spec.Template.Spec.Containers
 	require.Len(t, containers, 1)
 	require.Len(t, containers[0].Args, 2)
+	assertResolvesHeadAtFireTime(t, containers[0])
+}
+
+// The fork resolves the branch head when the CronJob fires and injects it as
+// the job's commit, so periodics behave like postsubmits (see constructCronJob).
+// Pins the script and the token plumbing so a rebase cannot silently drop them.
+func assertResolvesHeadAtFireTime(t *testing.T, container v1.Container) {
+	script := container.Args[1]
+	require.Contains(t, script, "git ls-remote")
+	require.Contains(t, script, ".spec.refs.base_sha = $sha")
+	require.Contains(t, script, "lighthouse.jenkins-x.io/lastCommitSHA")
+	require.Contains(t, script, "exit 1", "an unresolvable ref must fail the pod, not create a commitless job")
+	var gitToken *v1.EnvVar
+	for i := range container.Env {
+		if container.Env[i].Name == "GIT_TOKEN" {
+			gitToken = &container.Env[i]
+		}
+	}
+	require.NotNil(t, gitToken, "the resolve step needs GIT_TOKEN for private repos")
+	require.Equal(t, "lighthouse-oauth-token", gitToken.ValueFrom.SecretKeyRef.Name)
+	require.Equal(t, "oauth", gitToken.ValueFrom.SecretKeyRef.Key)
 }
 
 func setupPeriodicsTest() (string, *PeriodicAgent) {
