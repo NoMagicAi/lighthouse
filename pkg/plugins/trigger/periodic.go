@@ -442,9 +442,10 @@ func (pa *PeriodicAgent) constructCronJob(resourceName, configMapName string, la
 								// downstream that matches runs by commit (the lastCommitSHA label, image
 								// tags derived from PULL_PULL_SHA) comes out empty. Resolve the branch head
 								// when the CronJob fires, so the job carries a real commit exactly like a
-								// postsubmit; the controller derives the labels from spec.refs at
-								// PipelineRun creation. An unresolvable ref fails the pod rather than
-								// creating a commitless job.
+								// postsubmit. An unresolvable ref fails the pod rather than creating a
+								// commitless job.
+								// jobutil skips org/repo/branch/baseSHA/lastCommitSHA for periodics, so
+								// the labels runs are grouped by have to be set here, not derived.
 								WithArgs("-c", `
 set -o errexit
 set -o pipefail
@@ -461,8 +462,10 @@ sha=$(git ls-remote "https://x-access-token:${GIT_TOKEN}@${clone_uri#https://}" 
 [[ -n "$sha" ]] || { echo "could not resolve $ref of $clone_uri" >&2; exit 1; }
 echo "resolved ${org}/${repo} ${ref} to ${sha}"
 
-jq --arg sha "$sha" '.spec.refs.base_sha = $sha
-    | .metadata.labels["lighthouse.jenkins-x.io/lastCommitSHA"] = $sha' \
+jq --arg sha "$sha" --arg branch "$branch" '.spec.refs.base_sha = $sha
+    | .metadata.labels["lighthouse.jenkins-x.io/lastCommitSHA"] = $sha
+    | if $branch == "" then . else
+        .metadata.labels["lighthouse.jenkins-x.io/branch"] = $branch end' \
   /config/lighthousejob.json > /tmp/lighthousejob.json
 
 create_output=$(kubectl create -f /tmp/lighthousejob.json)
