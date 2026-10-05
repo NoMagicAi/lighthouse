@@ -1072,3 +1072,55 @@ func TestRetestFilter(t *testing.T) {
 		})
 	}
 }
+
+func TestMultiLineTestCommentStartsEachJobOnce(t *testing.T) {
+	g := &fake2.SCMClient{
+		OrgMembers: map[string][]string{"org": {"trusted-member"}},
+		PullRequests: map[int]*scm.PullRequest{
+			0: {
+				Author: scm.User{Login: "trusted-member"},
+				Head:   scm.PullRequestBranch{Sha: "cafe"},
+				Base: scm.PullRequestBranch{
+					Ref:  "master",
+					Repo: scm.Repository{Namespace: "org", Name: "repo"},
+				},
+			},
+		},
+		PullRequestChanges: map[int][]*scm.Change{0: {{Path: "CHANGED"}}},
+	}
+	fakeLauncher := fake.NewLauncher()
+	c := Client{
+		SCMProviderClient: g,
+		LauncherClient:    fakeLauncher,
+		Config:            &config.Config{ProwConfig: config.ProwConfig{LighthouseJobNamespace: "lighthouseJobs"}},
+		Logger:            logrus.WithField("plugin", pluginName),
+	}
+	var presubmits []job.Presubmit
+	for _, name := range []string{"job-a", "job-b", "job-c"} {
+		presubmit := job.Presubmit{Base: job.Base{Name: name}}
+		presubmit.SetDefaults("")
+		presubmits = append(presubmits, presubmit)
+	}
+	if err := c.Config.SetPresubmits(map[string][]job.Presubmit{"org/repo": presubmits}); err != nil {
+		t.Fatalf("failed to set presubmits: %v", err)
+	}
+	event := scmprovider.GenericCommentEvent{
+		Action:      scm.ActionCreate,
+		Repo:        scm.Repository{Namespace: "org", Name: "repo", FullName: "org/repo"},
+		Body:        "/test job-a\n/test job-b\n/test job-c",
+		Author:      scm.User{Login: "trusted-member"},
+		IssueAuthor: scm.User{Login: "trusted-member"},
+		IssueState:  "open",
+		IsPR:        true,
+	}
+
+	if err := plugin.InvokeCommandHandler(&event, func(_ plugins.CommandEventHandler, e *scmprovider.GenericCommentEvent, _ plugins.CommandMatch) error {
+		return handleGenericComment(c, &plugins.Trigger{}, *e)
+	}); err != nil {
+		t.Fatalf("didn't expect error: %s", err)
+	}
+
+	if len(fakeLauncher.Pipelines) != 3 {
+		t.Errorf("expected 3 jobs, one per /test line, got %d", len(fakeLauncher.Pipelines))
+	}
+}
