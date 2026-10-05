@@ -49,10 +49,13 @@ var plugin = plugins.Plugin{
 	PullRequestHandler:      handlePullRequest,
 	PushEventHandler:        handlePush,
 	DeploymentStatusHandler: handleDeploymentStatus,
+	// MaxMatches 1: the handler re-reads the whole comment, so one call covers all
+	// its /test lines. One call per line started every named job once per line.
 	Commands: []plugins.Command{{
 		Name:        "ok-to-test",
 		Description: "Marks a PR as 'trusted' and starts tests.",
 		WhoCanUse:   "Members of the trusted organization for the repo.",
+		MaxMatches:  1,
 		Action: plugins.
 			Invoke(handleGenericCommentEvent).
 			When(plugins.Action(scm.ActionCreate), plugins.IsPR(), plugins.IssueState("open")),
@@ -63,6 +66,7 @@ var plugin = plugins.Plugin{
 		},
 		Description: "Manually starts a/all test job(s).",
 		Featured:    true,
+		MaxMatches:  1,
 		Action: plugins.
 			Invoke(handleGenericCommentEvent).
 			When(plugins.Action(scm.ActionCreate), plugins.IsPR(), plugins.IssueState("open")),
@@ -70,6 +74,7 @@ var plugin = plugins.Plugin{
 		Name:        "retest",
 		Description: "Rerun test jobs that have failed.",
 		Featured:    true,
+		MaxMatches:  1,
 		Action: plugins.
 			Invoke(handleGenericCommentEvent).
 			When(plugins.Action(scm.ActionCreate), plugins.IsPR(), plugins.IssueState("open")),
@@ -90,6 +95,7 @@ func init() {
 			},
 			Description: fmt.Sprintf("Manually trigger /%s chatops commands.", customTriggerCommand),
 			Featured:    true,
+			MaxMatches:  1,
 			Action: plugins.
 				Invoke(handleGenericCommentEvent).
 				When(plugins.Action(scm.ActionCreate), plugins.IsPR(), plugins.IssueState("open")),
