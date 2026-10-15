@@ -240,6 +240,9 @@ func resolvePipelineRunReferences(resolver *UsesResolver, prs *pipelinev1.Pipeli
 	if prs, err := inheritTaskSteps(resolver, prs); err != nil {
 		return prs, errors.Wrapf(err, "failed to inherit steps")
 	}
+	if err := applyTaskScheduling(prs); err != nil {
+		return prs, err
+	}
 
 	defaultTaskName(prs) // Renamed function for clarity
 	return DefaultPipelineParameters(prs)
