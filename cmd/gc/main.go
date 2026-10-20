@@ -69,21 +69,23 @@ func main() {
 
 	for _, job := range jobList.Items {
 		j := job
-		completionTime := j.Status.CompletionTime
-		if completionTime != nil && completionTime.Add(o.maxAge).Before(now) {
-			// The job completed at least maxAge ago, so delete it.
-			err = deleteLighthouseJob(lhInterface, &j)
-			if err != nil {
-				logrus.WithError(err).Fatalf("Failed to delete LighthouseJob %s", j.Name)
-			}
-		} else if completionTime == nil && j.Status.StartTime.Add(o.maxAge).Before(now) {
-			// The job never completed, but was created at least maxAge ago, so delete it.
-			err = deleteLighthouseJob(lhInterface, &j)
-			if err != nil {
-				logrus.WithError(err).Fatalf("Failed to delete LighthouseJob %s", j.Name)
-			}
+		if !expired(&j, now, o.maxAge) {
+			continue
+		}
+		err = deleteLighthouseJob(lhInterface, &j)
+		if err != nil {
+			logrus.WithError(err).Fatalf("Failed to delete LighthouseJob %s", j.Name)
 		}
 	}
+}
+
+// expired reports whether the job completed, or was created without completing, at least maxAge ago.
+func expired(job *v1alpha1.LighthouseJob, now time.Time, maxAge time.Duration) bool {
+	if job.Status.CompletionTime != nil {
+		return job.Status.CompletionTime.Add(maxAge).Before(now)
+	}
+	// Not StartTime: it stays zero (year 1) until the controller picks the job up.
+	return job.CreationTimestamp.Add(maxAge).Before(now)
 }
 
 func deleteLighthouseJob(lhInterface lhclient.LighthouseJobInterface, lhJob *v1alpha1.LighthouseJob) error {
