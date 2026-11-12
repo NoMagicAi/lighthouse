@@ -96,6 +96,9 @@ type Status struct {
 	Context     string `json:"context,omitempty"`
 }
 
+// statusPageSize is the largest page GitHub allows. A busy commit has about 700 statuses.
+const statusPageSize = 100
+
 // ListStatuses list the statuses
 func (c *Client) ListStatuses(owner, repo, ref string) ([]*scm.Status, error) {
 	ctx := context.Background()
@@ -107,6 +110,7 @@ func (c *Client) ListStatuses(owner, repo, ref string) ([]*scm.Status, error) {
 	firstRun := false
 	opts := &scm.ListOptions{
 		Page: 1,
+		Size: statusPageSize,
 	}
 	for !firstRun || (resp != nil && opts.Page <= resp.Page.Last) {
 		statuses, resp, err = c.client.Repositories.ListStatus(ctx, fullName, ref, opts)
@@ -120,12 +124,35 @@ func (c *Client) ListStatuses(owner, repo, ref string) ([]*scm.Status, error) {
 	return allStatuses, nil
 }
 
-// GetCombinedStatus returns the combined status
+// GetCombinedStatus returns the combined status. Its statuses come from the paged
+// ListStatuses: the combined endpoint returns only its first page (30 contexts on GitHub).
 func (c *Client) GetCombinedStatus(owner, repo, ref string) (*scm.CombinedStatus, error) {
 	ctx := context.Background()
 	fullName := c.repositoryName(owner, repo)
-	resources, _, err := c.client.Repositories.FindCombinedStatus(ctx, fullName, ref)
-	return resources, err
+	combined, _, err := c.client.Repositories.FindCombinedStatus(ctx, fullName, ref)
+	if err != nil || combined == nil {
+		return combined, err
+	}
+	statuses, err := c.ListStatuses(owner, repo, ref)
+	if err != nil {
+		return nil, err
+	}
+	combined.Statuses = newestStatusPerContext(statuses)
+	return combined, nil
+}
+
+// newestStatusPerContext keeps the first status of each context: the list is newest first.
+func newestStatusPerContext(statuses []*scm.Status) []*scm.Status {
+	seenContexts := map[string]bool{}
+	var newest []*scm.Status
+	for _, status := range statuses {
+		if seenContexts[status.Label] {
+			continue
+		}
+		seenContexts[status.Label] = true
+		newest = append(newest, status)
+	}
+	return newest
 }
 
 // HasPermission returns true if GetUserPermission() returns any of the roles.
