@@ -442,8 +442,19 @@ func loadPipelineRunRefs(resolver *UsesResolver, prs *pipelinev1.PipelineRun, di
 }
 
 func loadTaskRefs(resolver *UsesResolver, pipelineSpec *pipelinev1.PipelineSpec, dir, message string, re *regexp.Regexp) error {
-	for i := range pipelineSpec.Tasks {
-		t := &pipelineSpec.Tasks[i]
+	if err := loadTaskRefsHelper(resolver, pipelineSpec.Tasks, dir, message, re, false); err != nil {
+		return err
+	}
+	return loadTaskRefsHelper(resolver, pipelineSpec.Finally, dir, message, re, true)
+}
+
+func loadTaskRefsHelper(resolver *UsesResolver, pipelineTasks []pipelinev1.PipelineTask, dir, message string, re *regexp.Regexp, isFinally bool) error {
+	for i := range pipelineTasks {
+		t := &pipelineTasks[i]
+		// Existing finally tasks name Tasks in the cluster, so only a .yaml name is a file there.
+		if isFinally && t.TaskRef != nil && !strings.HasSuffix(t.TaskRef.Name, ".yaml") {
+			continue
+		}
 		if t.TaskSpec == nil && t.TaskRef != nil && t.TaskRef.Name != "" && re.MatchString(t.TaskRef.Name) {
 			// TODO: this is needed since we migrated from a version that accepted relative paths, we should use absolute paths
 			if strings.HasPrefix(t.TaskRef.Name, "../tekton") {

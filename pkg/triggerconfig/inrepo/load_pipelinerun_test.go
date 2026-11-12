@@ -151,3 +151,30 @@ func TestLoadPipelineRunTest(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadTaskRefsInFinally(t *testing.T) {
+	dir := filepath.Join("test_data", "load_finally_task_refs")
+	resolver := &UsesResolver{
+		OwnerName:        "myorg",
+		LocalFileResolve: true,
+		Dir:              dir,
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "source.yaml"))
+	require.NoError(t, err)
+
+	pr, err := LoadTektonResourceAsPipelineRun(resolver, data)
+	require.NoError(t, err)
+
+	finally := pr.Spec.PipelineSpec.Finally
+	require.Len(t, finally, 2)
+
+	fileTask := finally[0]
+	assert.Nil(t, fileTask.TaskRef, "a .yaml reference must be replaced")
+	require.NotNil(t, fileTask.TaskSpec, "the task file must be inlined")
+	assert.Equal(t, "notify", fileTask.TaskSpec.Steps[0].Name)
+
+	clusterTask := finally[1]
+	assert.Nil(t, clusterTask.TaskSpec)
+	require.NotNil(t, clusterTask.TaskRef, "a name without .yaml must stay a cluster Task reference")
+	assert.Equal(t, "scale-down", clusterTask.TaskRef.Name)
+}

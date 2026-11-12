@@ -1,0 +1,22 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: build
+  annotations:
+    lighthouse.jenkins-x.io/loadFileRefs: ".*"
+spec:
+  pipelineSpec:
+    tasks:
+    - name: build
+      taskSpec:
+        steps:
+        - name: build
+          image: busybox
+          script: exit 1
+    finally:
+    - name: notify-on-failure
+      taskRef:
+        name: ../tekton/common/notify-on-failure.yaml
+    - name: scale-down
+      taskRef:
+        name: scale-down
