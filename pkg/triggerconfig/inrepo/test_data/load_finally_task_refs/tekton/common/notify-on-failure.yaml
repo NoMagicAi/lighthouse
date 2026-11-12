@@ -1,0 +1,9 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: notify-on-failure
+spec:
+  steps:
+  - name: notify
+    image: busybox
+    script: echo "build failed"
