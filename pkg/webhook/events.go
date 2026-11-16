@@ -434,9 +434,14 @@ func actionRelatesToPullRequestComment(action scm.Action, l *logrus.Entry) bool 
 	}
 }
 
-func (s *Server) initializeFileBrowser(token string, gitCloneUser, gitServerURL string) error {
+func (s *Server) initializeFileBrowser(gitCloneUser, gitServerURL string) error {
 	configureOpts := func(opts *gitv2.ClientFactoryOpts) {
+		// Read the token on every use: a GitHub App token is replaced before it expires.
 		opts.Token = func() []byte {
+			_, token, err := getCredentials(s.ConfigAgent.Config)
+			if err != nil {
+				logrus.WithError(err).Error("failed to read the git token")
+			}
 			return []byte(token)
 		}
 		opts.GitUser = func() (name, email string, err error) {

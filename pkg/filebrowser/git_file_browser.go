@@ -229,7 +229,8 @@ func (c *repoClientFacade) UseRef(ref string, fc FetchCache) error {
 			}
 		} else {
 			// let's merge any new changes into the main branch. ref aught to always be the main branch unless it's a sha
-			_, err := runCmd(c.repoClient.Directory(), "git", "fetch", "origin", "--force", c.mainBranch+":"+c.mainBranch)
+			// Not "git fetch origin": origin keeps the URL from clone time, and its token can be expired.
+			err := c.repoClient.FetchRef(c.mainBranch + ":" + c.mainBranch)
 			if err != nil {
 				return errors.Wrapf(err, "failed to update local branch %s for repository %s", c.mainBranch, c.fullName)
 			}
