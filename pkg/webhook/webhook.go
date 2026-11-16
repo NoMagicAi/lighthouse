@@ -243,7 +243,7 @@ func (o *WebhooksController) handleWebhookOrPollRequest(w http.ResponseWriter, r
 	}
 
 	if o.server.FileBrowsers == nil {
-		err := o.server.initializeFileBrowser(token, gitCloneUser, o.gitServerURL)
+		err := o.server.initializeFileBrowser(gitCloneUser, o.gitServerURL)
 		if err != nil {
 			responseHTTPError(w, http.StatusInternalServerError, fmt.Sprintf("500 Internal Server Error: %s", err.Error()))
 			return
@@ -502,11 +502,11 @@ func (o *WebhooksController) createHookServer(kc kubeclient.Interface) (*Server,
 	initializePeriodics, _ := strconv.ParseBool(os.Getenv("INITIALIZE_PERIODICS"))
 	if initializePeriodics && !server.PeriodicAgent.PeriodicsInitialized(o.namespace, kc) {
 		if server.FileBrowsers == nil {
-			gitCloneUser, token, err := getCredentials(configAgent.Config)
+			gitCloneUser, _, err := getCredentials(configAgent.Config)
 			if err != nil {
 				logrus.Error(err.Error())
 			} else {
-				err = server.initializeFileBrowser(token, gitCloneUser, o.gitServerURL)
+				err = server.initializeFileBrowser(gitCloneUser, o.gitServerURL)
 				if err != nil {
 					logrus.Error(err.Error())
 				}
