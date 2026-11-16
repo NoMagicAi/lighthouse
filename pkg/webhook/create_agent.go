@@ -56,7 +56,10 @@ func (s *Server) CreateAgent(l *logrus.Entry, owner, repo, ref string) (plugins.
 	if x, found := c.Get(key); found {
 		pa := x.(*plugins.Agent)
 		if pa != nil {
-			return *pa, nil
+			// Reuse only the config: the cached clients hold the token of an older webhook.
+			pc.Config = pa.Config
+			pc.PluginConfig = pa.PluginConfig
+			return pc, nil
 		}
 	}
 	err := s.createAgent(&pc, owner, repo, ref)
