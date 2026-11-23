@@ -186,6 +186,90 @@ func TestGitFileBrowser_Clone_CreateTag_FetchRef(t *testing.T) {
 	require.Equal(t, string(data), "README-update-1")
 }
 
+// recordingClientFactory keeps the repo client that the file browser works on.
+type recordingClientFactory struct {
+	git.ClientFactory
+	repoClient git.RepoClient
+}
+
+func (f *recordingClientFactory) ClientFor(org, repo string, sparseCheckoutPatterns []string) (git.RepoClient, error) {
+	repoClient, err := f.ClientFactory.ClientFor(org, repo, sparseCheckoutPatterns)
+	f.repoClient = repoClient
+	return repoClient, err
+}
+
+func TestGitFileBrowser_ReadsWithoutCheckout(t *testing.T) {
+	baseDir := t.TempDir()
+	repoDir := filepath.Join(baseDir, "org", "repo")
+	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, ".lighthouse"), 0700))
+
+	userGetter := func() (name, email string, err error) {
+		return "bot", "bot@example.com", nil
+	}
+	censor := func(content []byte) []byte { return content }
+	executor, err := git.NewCensoringExecutor(repoDir, censor, logrus.WithField("client", "git"))
+	require.NoError(t, err, "failed to find git binary")
+
+	runGit := func(args ...string) string {
+		out, err := executor.Run(args...)
+		require.NoError(t, err, "failed to run git %v: %s", args, out)
+		return strings.TrimSpace(string(out))
+	}
+	writeFile := func(name, content string) {
+		require.NoError(t, os.WriteFile(filepath.Join(repoDir, name), []byte(content), 0600))
+	}
+
+	runGit("init", ".")
+	runGit("config", "--add", "user.name", "bot")
+	runGit("config", "--add", "user.email", "bot@example.com")
+	writeFile("README.md", "first")
+	writeFile(".lighthouse/triggers.yaml", "first triggers")
+	runGit("add", ".")
+	runGit("commit", "-m", "first")
+	firstSHA := runGit("rev-parse", "HEAD")
+	writeFile("README.md", "second")
+	writeFile(".lighthouse/extra.yaml", "extra")
+	runGit("add", ".")
+	runGit("commit", "-m", "second")
+
+	localFactory, err := git.NewLocalClientFactory(baseDir, userGetter, censor)
+	require.NoError(t, err, "failed to create git client factory")
+	factory := &recordingClientFactory{ClientFactory: localFactory}
+	fb := filebrowser.NewFileBrowserFromGitClient(factory)
+	fc := filebrowser.NewFetchCache()
+
+	data, err := fb.GetFile("org", "repo", "README.md", firstSHA, fc)
+	require.NoError(t, err, "failed to get README.md at the first commit")
+	assert.Equal(t, "first", string(data))
+
+	data, err = fb.GetFile("org", "repo", "README.md", "", fc)
+	require.NoError(t, err, "failed to get README.md on the main branch")
+	assert.Equal(t, "second", string(data))
+
+	data, err = fb.GetFile("org", "repo", "missing.md", firstSHA, fc)
+	require.NoError(t, err, "a missing file is not an error")
+	assert.Nil(t, data)
+
+	err = fb.WithDir("org", "repo", firstSHA, fc, []string{"/.lighthouse/**"}, func(dir string) error {
+		triggers, err := os.ReadFile(filepath.Join(dir, ".lighthouse", "triggers.yaml"))
+		require.NoError(t, err, "failed to read the exported triggers.yaml")
+		assert.Equal(t, "first triggers", string(triggers))
+		assert.NoFileExists(t, filepath.Join(dir, ".lighthouse", "extra.yaml"), "extra.yaml is not in the first commit")
+		assert.NoFileExists(t, filepath.Join(dir, "README.md"), "only .lighthouse is exported")
+		return nil
+	})
+	require.NoError(t, err, "failed to export .lighthouse at the first commit")
+
+	// a new request sees a new commit on the main branch
+	writeFile("README.md", "third")
+	runGit("commit", "-a", "-m", "third")
+	data, err = fb.GetFile("org", "repo", "README.md", "", filebrowser.NewFetchCache())
+	require.NoError(t, err, "failed to get README.md after a new commit")
+	assert.Equal(t, "third", string(data))
+
+	assert.NoFileExists(t, filepath.Join(factory.repoClient.Directory(), "README.md"), "the clone must stay without a checkout")
+}
+
 func TestIsSHA(t *testing.T) {
 	testCases := map[string]bool{
 		"de6cc99": true,
